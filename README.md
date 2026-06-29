@@ -1,83 +1,102 @@
-# This is my package self-updater
+# Snawbar Self-Updater
 
-[![Latest Version on Packagist](https://img.shields.io/packagist/v/snawbar/self-updater.svg?style=flat-square)](https://packagist.org/packages/snawbar/self-updater)
-[![GitHub Tests Action Status](https://github.com/spatie/package-self-updater-laravel/actions/workflows/run-tests.yml/badge.svg)](https://github.com/snawbar/self-updater/actions?query=workflow%3Arun-tests+branch%3Amain)
-[![GitHub Code Style Action Status](https://github.com/spatie/package-self-updater-laravel/actions/workflows/fix-php-code-style-issues.yml/badge.svg)](https://github.com/snawbar/self-updater/actions?query=workflow%3A"Fix+PHP+code+style+issues"+branch%3Amain)
-[![Total Downloads](https://img.shields.io/packagist/dt/snawbar/self-updater.svg?style=flat-square)](https://packagist.org/packages/snawbar/self-updater)
+A complete Laravel package for handling system auto-updates, license verification, and update progress UI for Snawbar applications.
 
-This is where your description should go. Limit it to a paragraph or two. Consider adding a small example.
+## Features
 
-## Support us
-
-[<img src="https://github-ads.s3.eu-central-1.amazonaws.com/self-updater.jpg?t=1" width="419px" />](https://spatie.be/github-ad-click/self-updater)
-
-We invest a lot of resources into creating [best in class open source packages](https://spatie.be/open-source). You can support us by [buying one of our paid products](https://spatie.be/open-source/support-us).
-
-We highly appreciate you sending us a postcard from your hometown, mentioning which of our package(s) you are using. You'll find our address on [our contact page](https://spatie.be/about-us). We publish all received postcards on [our virtual postcard wall](https://spatie.be/open-source/postcards).
+- **Automated System Updates**: Check for new versions, download update bundles (ZIP), extract, backup the database, and seamlessly swap files in production.
+- **License Management**: Validates system licenses, checks expiration dates against a remote license server, and synchronizes local license information.
+- **Ready-to-use UI**: Includes Blade components for an update progress bar, an update details modal, and a "set price" prompt for customers.
+- **Background Processing**: Tracks update progress in the background and reports it to the frontend in real-time.
 
 ## Installation
 
-You can install the package via composer:
+Since this package is currently stored locally, you must first define it as a repository in your project's `composer.json`:
+
+```json
+    "repositories": [
+        {
+            "type": "path",
+            "url": "../self-updater"
+        }
+    ]
+```
+*(Adjust the `url` path to point to where this package is located relative to your project).*
+
+Then, install the package via composer:
 
 ```bash
 composer require snawbar/self-updater
 ```
 
-You can publish and run the migrations with:
+## Setup & Requirements
 
-```bash
-php artisan vendor:publish --tag="self-updater-migrations"
-php artisan migrate
-```
-
-You can publish the config file with:
-
-```bash
-php artisan vendor:publish --tag="self-updater-config"
-```
-
-This is the contents of the published config file:
+### 1. Database Requirements
+Your application must have a `system_updates` table to keep track of versions. A basic migration should look like this:
 
 ```php
-return [
-];
+Schema::create('system_updates', function (Blueprint $table) {
+    $table->id();
+    $table->string('version');
+    $table->string('user_price')->default('0');
+    $table->string('version_price')->default('0');
+    $table->timestamp('applied_at')->nullable();
+});
 ```
 
-Optionally, you can publish the views using
+### 2. Configuration Keys
+The package relies on several configuration keys that must exist in your application's `config/system.php` and `config/license.php` files:
 
-```bash
-php artisan vendor:publish --tag="self-updater-views"
-```
+**`config/system.php`:**
+- `system.version`: Current version of the system.
+- `system.update_url`: URL to check for general updates.
+
+**`config/license.php`:**
+- `license.url`: URL to check the license status.
+- `license.write_url`: URL to push the license data.
+- `license.secret`: Secret key for API authentication.
+- `license.local_path`: Absolute path to your `license.json` file.
 
 ## Usage
 
+### Integrating the UI Components
+To show the update panel in your dashboard, simply include the package's views in your Blade templates.
+
+For example, in your `dashboard.blade.php`:
+
+```blade
+{{-- 1. Display the progress bar (visible during an update) --}}
+@include('self-updater::update-progressbar')
+
+{{-- 2. Display the modal showing new version info and changelog (optional) --}}
+@include('self-updater::updates-modal', ['updateData' => $updateData])
+
+{{-- 3. Display the modal for setting the update price --}}
+@include('self-updater::set-price')
+
+{{-- 4. Include the JavaScript logic that handles the update process --}}
+@include('self-updater::progress')
+```
+
+### How to trigger the UI
+The UI components depend on an `$updateData` array, which you can retrieve from the `UpdateCheckService`:
+
 ```php
-$selfUpdater = new Snawbar\SelfUpdater();
-echo $selfUpdater->echoPhrase('Hello, Snawbar!');
+use Snawbar\SelfUpdater\Services\UpdateCheckService;
+
+public function index(UpdateCheckService $updateCheck)
+{
+    $updateData = $updateCheck->check();
+    
+    return view('dashboard.index', compact('updateData'));
+}
 ```
 
-## Testing
-
-```bash
-composer test
-```
-
-## Changelog
-
-Please see [CHANGELOG](CHANGELOG.md) for more information on what has changed recently.
-
-## Contributing
-
-Please see [CONTRIBUTING](CONTRIBUTING.md) for details.
-
-## Security Vulnerabilities
-
-Please review [our security policy](../../security/policy) on how to report security vulnerabilities.
-
-## Credits
-
-- [snawbar](https://github.com/rabar)
-- [All Contributors](../../contributors)
+### Routes
+The package automatically registers the following routes under the `web` and `auth` middlewares:
+- `POST /system/update`: Triggers the background auto-update process.
+- `GET /system/update-progress`: Returns the current download/extract progress as JSON.
+- `POST /system/set-price`: Saves the price set by the user for the update.
 
 ## License
 
