@@ -1,12 +1,12 @@
 {
-    "name": "snawbar/self-updater",
+    "name": "rabarvp1/self-updater",
     "description": "This is my package self-updater",
     "keywords": [
         "snawbar",
         "laravel",
         "self-updater"
     ],
-    "homepage": "https://github.com/snawbar/self-updater",
+    "homepage": "https://github.com/rabarvp1/self-updater",
     "license": "MIT",
     "authors": [
         {
@@ -64,6 +64,6 @@
             }
         }
     },
-    "minimum-stability": "dev",
+    "minimum-stability": "stable",
     "prefer-stable": true
 }
