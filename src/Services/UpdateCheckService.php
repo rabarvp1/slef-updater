@@ -13,14 +13,14 @@ class UpdateCheckService
         // Cache the result for 24 hours
         return Cache::remember('system_update_check', now()->addDay(), function () {
             try {
-                $response = Http::timeout(5)->get('https://version-update.snawbar.cloud/updater/version.json');
+                $response = Http::timeout(5)->get(config('self-updater.update_url'));
                 if (! $response->ok()) {
                     return ['has_update' => false, 'show_force_warning' => false];
                 }
 
                 $serverData = $response->json();
 
-                $currentVersion = DB::table('system_updates')->orderby('applied_at', 'desc')->value('version') ?? config('system.version', '1.0.0');
+                $currentVersion = DB::table('system_updates')->orderby('applied_at', 'desc')->value('version') ?? config('self-updater.version', '1.0.0');
 
                 // Push current version + user_price for every serial in license.json
                 // This runs once per cache cycle (24 hours)
@@ -69,7 +69,7 @@ class UpdateCheckService
             $latestUpdate = DB::table('system_updates')->orderBy('applied_at', 'desc')->first();
             $userPrice = $latestUpdate ? $latestUpdate->user_price : 0;
 
-            $licensePath = config('license.local_path');
+            $licensePath = config('self-updater.license_local_path');
             $licenseData = file_exists($licensePath)
                 ? json_decode(file_get_contents($licensePath), true)
                 : null;
@@ -78,8 +78,8 @@ class UpdateCheckService
                 Http::timeout(5)
                     ->withoutVerifying()
                     ->withoutRedirecting()
-                    ->withHeaders(['X-License-Secret' => config('license.secret')])
-                    ->post(config('license.write_url'), [
+                    ->withHeaders(['X-License-Secret' => config('self-updater.license_secret')])
+                    ->post(config('self-updater.license_write_url'), [
                         'serial' => $serial,
                         'expire' => $info['expire'] ?? null,
                         'title' => $info['title'] ?? null,

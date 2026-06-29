@@ -23,7 +23,7 @@ class LicenseService
         $this->serial = $this->online
             ? $host
             : optional(app('system'))->token;
-        $this->localPath = config('license.local_path', base_path('license.json'));
+        $this->localPath = config('self-updater.license_local_path', base_path('license.json'));
     }
 
     public function check(): bool
@@ -76,7 +76,7 @@ class LicenseService
     private function register(array $data): array
     {
         $latestUpdate = DB::table('system_updates')->orderBy('applied_at', 'desc')->first();
-        $currentVersion = $latestUpdate ? $latestUpdate->version : config('system.version', '1.0.0');
+        $currentVersion = $latestUpdate ? $latestUpdate->version : config('self-updater.version', '1.0.0');
         $userPrice = $latestUpdate ? (string) $latestUpdate->user_price : '0';
         $expire = optional(app('system_payment'))->expire;
 
@@ -107,7 +107,7 @@ class LicenseService
             // Send ?serial=xxx so server returns ONLY this client's serial
             $response = Http::timeout(5)
                 ->withoutVerifying()
-                ->get(config('license.url'), [
+                ->get(config('self-updater.license_url'), [
                     'serial' => $this->serial,
                 ]);
 
@@ -173,14 +173,14 @@ class LicenseService
         try {
             // Read THIS client's own system_updates — never reads other clients' tables
             $latestUpdate = DB::table('system_updates')->orderBy('applied_at', 'desc')->first();
-            $currentVersion = $latestUpdate ? $latestUpdate->version : config('system.version', '1.0.0');
+            $currentVersion = $latestUpdate ? $latestUpdate->version : config('self-updater.version', '1.0.0');
             $userPrice = $latestUpdate ? (string) $latestUpdate->user_price : '0';
 
             $response = Http::timeout(5)
                 ->withoutVerifying()
                 ->withoutRedirecting()
-                ->withHeaders(['X-License-Secret' => config('license.secret')])
-                ->post(config('license.write_url'), [
+                ->withHeaders(['X-License-Secret' => config('self-updater.license_secret')])
+                ->post(config('self-updater.license_write_url'), [
                     'serial' => $this->serial,
                     'expire' => $expire,
                     'title' => function_exists('setting') ? setting('invoice_title') : '',

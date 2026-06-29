@@ -55,7 +55,7 @@ class SystemUpdateController extends Controller
 
             app(AutoUpdateService::class)->run($updateDetails);
 
-            $versionName = $updateDetails['new_version'] ?? $updateDetails['version'] ?? config('system.version', '1.0.0');
+            $versionName = $updateDetails['new_version'] ?? $updateDetails['version'] ?? config('self-updater.version', '1.0.0');
 
             DB::table('system_updates')
                 ->where('version', $versionName)

@@ -11,19 +11,23 @@ A complete Laravel package for handling system auto-updates, license verificatio
 
 ## Installation
 
-Since this package is currently stored locally, you must first define it as a repository in your project's `composer.json`:
+To use this package in any new project (like your Restaurant system), you should host the package on a private Git repository (like GitHub or GitLab). 
+
+### Step 1: Add the Repository
+Add the repository to your new project's `composer.json` file:
 
 ```json
     "repositories": [
         {
-            "type": "path",
-            "url": "../self-updater"
+            "type": "vcs",
+            "url": "https://github.com/rabarvp1/slef-updater.git"
         }
     ]
 ```
-*(Adjust the `url` path to point to where this package is located relative to your project).*
+*(If you are developing locally and the package folder is next to your project, you can use `"type": "path"` and `"url": "../self-updater"` instead).*
 
-Then, install the package via composer:
+### Step 2: Download the Package
+Once the repository is defined, you can download and install the package via composer:
 
 ```bash
 composer require snawbar/self-updater
@@ -45,17 +49,23 @@ Schema::create('system_updates', function (Blueprint $table) {
 ```
 
 ### 2. Configuration Keys
-The package relies on several configuration keys that must exist in your application's `config/system.php` and `config/license.php` files:
+The package provides its own configuration file which you can publish to your application:
 
-**`config/system.php`:**
-- `system.version`: Current version of the system.
-- `system.update_url`: URL to check for general updates.
+```bash
+php artisan vendor:publish --tag="self-updater-config"
+```
 
-**`config/license.php`:**
-- `license.url`: URL to check the license status.
-- `license.write_url`: URL to push the license data.
-- `license.secret`: Secret key for API authentication.
-- `license.local_path`: Absolute path to your `license.json` file.
+This will create a `config/self-updater.php` file in your project. You must define your endpoints here. This allows you to use the package for completely different projects (e.g. Cashier vs Restaurant) by just pointing them to different servers:
+
+**`config/self-updater.php`:**
+- `update_url`: URL to check for general updates (e.g., `https://version-update.your-domain.com/updater/version.json`).
+- `license_url`: URL to check the license status.
+- `license_write_url`: URL to push the license data.
+- `license_secret`: Secret key for API authentication.
+- `license_local_path`: Absolute path to your `license.json` file.
+- `version`: Current version fallback.
+
+*(Note: If you don't publish the config, it will gracefully fallback to your `config('system.xxx')` and `config('license.xxx')` variables).*
 
 ## Usage
 

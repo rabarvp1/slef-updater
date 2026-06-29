@@ -91,7 +91,7 @@ class AutoUpdateService
                 Cache::put('update_current_progress', 95, 120);
             }
 
-            $version = $data['new_version'] ?? $data['version'] ?? config('system.version', '1.0.0');
+            $version = $data['new_version'] ?? $data['version'] ?? config('self-updater.version', '1.0.0');
             $price = $data['price'] ?? 0;
             $update->finalize($version, $price);
 

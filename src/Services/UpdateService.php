@@ -16,10 +16,10 @@ class UpdateService
             ->orderBy('applied_at', 'desc')
             ->first();
 
-        $currentDatabaseVersion = $latestAppliedUpdate ? $latestAppliedUpdate->version : config('system.version', '1.0.0');
+        $currentDatabaseVersion = $latestAppliedUpdate ? $latestAppliedUpdate->version : config('self-updater.version', '1.0.0');
 
         try {
-            $response = Http::timeout(5)->get(config('system.update_url'));
+            $response = Http::timeout(5)->get(config('self-updater.update_url'));
 
             if (! $response->ok()) {
                 return [
