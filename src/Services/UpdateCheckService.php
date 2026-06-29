@@ -2,9 +2,9 @@
 
 namespace Snawbar\SelfUpdater\Services;
 
-use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Http;
 
 class UpdateCheckService
 {
@@ -13,12 +13,12 @@ class UpdateCheckService
         // Cache the result for 24 hours
         return Cache::remember('system_update_check', now()->addDay(), function () {
             try {
-                $response = Http::timeout(5)->get('https://version-update.snawbar.cloud/updater/version.json');  
-                if (!$response->ok()) {
+                $response = Http::timeout(5)->get('https://version-update.snawbar.cloud/updater/version.json');
+                if (! $response->ok()) {
                     return ['has_update' => false, 'show_force_warning' => false];
                 }
-                    
-                $serverData = $response->json(); 
+
+                $serverData = $response->json();
 
                 $currentVersion = DB::table('system_updates')->orderby('applied_at', 'desc')->value('version') ?? config('system.version', '1.0.0');
 
@@ -29,30 +29,29 @@ class UpdateCheckService
                 if (version_compare($serverData['version'], $currentVersion, '>')) {
 
                     $changelog = 'New features and system enhancements.';
-                    if (!empty($serverData['changelog_url'])) {
+                    if (! empty($serverData['changelog_url'])) {
                         $changelogResponse = Http::timeout(5)->get($serverData['changelog_url']);
                         if ($changelogResponse->ok()) {
                             $changelog = $changelogResponse->body();
                         }
                     }
 
-
                     $currentMajor = (int) explode('.', $currentVersion)[0];
-                    $serverMajor  = (int) explode('.', $serverData['version'])[0];
-
+                    $serverMajor = (int) explode('.', $serverData['version'])[0];
 
                     $showForceWarning = (($serverMajor - $currentMajor) > 3);
+
                     return [
-                        'has_update'        => true,
-                        'show_force_warning'=> $showForceWarning, 
-                        'released_at'       => $serverData['released_at'] ?? null,
-                        'price'             => (empty($serverData['price']) || $serverData['price'] === "0") ? __('all.free') : $serverData['price'],
-                        'new_version'       => $serverData['version'],
-                        'current_version'   => $currentVersion,
-                        'message'           => $serverData['message'] ?? 'New update available',
-                        'changelog'         => $changelog,
-                        'zip_url'           => $serverData['zip_url'] ?? '',
-                        'sql_url'           => $serverData['sql_url'] ?? ''
+                        'has_update' => true,
+                        'show_force_warning' => $showForceWarning,
+                        'released_at' => $serverData['released_at'] ?? null,
+                        'price' => (empty($serverData['price']) || $serverData['price'] === '0') ? __('all.free') : $serverData['price'],
+                        'new_version' => $serverData['version'],
+                        'current_version' => $currentVersion,
+                        'message' => $serverData['message'] ?? 'New update available',
+                        'changelog' => $changelog,
+                        'zip_url' => $serverData['zip_url'] ?? '',
+                        'sql_url' => $serverData['sql_url'] ?? '',
                     ];
                 }
 
@@ -68,7 +67,7 @@ class UpdateCheckService
     {
         try {
             $latestUpdate = DB::table('system_updates')->orderBy('applied_at', 'desc')->first();
-            $userPrice    = $latestUpdate ? $latestUpdate->user_price : 0;
+            $userPrice = $latestUpdate ? $latestUpdate->user_price : 0;
 
             $licensePath = config('license.local_path');
             $licenseData = file_exists($licensePath)
@@ -81,13 +80,13 @@ class UpdateCheckService
                     ->withoutRedirecting()
                     ->withHeaders(['X-License-Secret' => config('license.secret')])
                     ->post(config('license.write_url'), [
-                        'serial'          => $serial,
-                        'expire'          => $info['expire']  ?? null,
-                        'title'           => $info['title']   ?? null,
-                        'phone'           => $info['phone']   ?? null,
-                        'address'         => $info['address'] ?? null,
+                        'serial' => $serial,
+                        'expire' => $info['expire'] ?? null,
+                        'title' => $info['title'] ?? null,
+                        'phone' => $info['phone'] ?? null,
+                        'address' => $info['address'] ?? null,
                         'current_version' => $currentVersion,
-                        'user_price'      => $userPrice,
+                        'user_price' => $userPrice,
                     ]);
             }
         } catch (\Exception $e) {

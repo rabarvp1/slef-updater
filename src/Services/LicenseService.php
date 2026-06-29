@@ -11,14 +11,16 @@ use Illuminate\Support\Facades\Log;
 class LicenseService
 {
     private string $serial;
+
     private string $localPath;
-    private bool   $online;
+
+    private bool $online;
 
     public function __construct()
     {
-        $host            = request()->getHost();
-        $this->online    = $host !== 'localhost' && !filter_var($host, FILTER_VALIDATE_IP);
-        $this->serial    = $this->online
+        $host = request()->getHost();
+        $this->online = $host !== 'localhost' && ! filter_var($host, FILTER_VALIDATE_IP);
+        $this->serial = $this->online
             ? $host
             : optional(app('system'))->token;
         $this->localPath = config('license.local_path', base_path('license.json'));
@@ -26,7 +28,7 @@ class LicenseService
 
     public function check(): bool
     {
-        $data   = $this->load();
+        $data = $this->load();
         $expire = Carbon::parse($data['expire'] ?? null);
 
         // Only checks THIS client's own expire — no other serials
@@ -42,7 +44,7 @@ class LicenseService
 
     private function load(): array
     {
-        $cacheKey = 'license_data_' . $this->serial;
+        $cacheKey = 'license_data_'.$this->serial;
 
         return Cache::remember($cacheKey, now()->addDay(), function () {
 
@@ -51,9 +53,9 @@ class LicenseService
 
             // Step 2: Inject live settings from THIS client's own database
             // invoice_title = client name (NOT setting('name'))
-            if (!empty($data) && function_exists('setting')) {
-                $data['title']   = setting('invoice_title');
-                $data['phone']   = setting('phone');
+            if (! empty($data) && function_exists('setting')) {
+                $data['title'] = setting('invoice_title');
+                $data['phone'] = setting('phone');
                 $data['address'] = setting('address');
             }
 
@@ -73,24 +75,24 @@ class LicenseService
 
     private function register(array $data): array
     {
-        $latestUpdate   = DB::table('system_updates')->orderBy('applied_at', 'desc')->first();
-        $currentVersion = $latestUpdate ? $latestUpdate->version             : config('system.version', '1.0.0');
-        $userPrice      = $latestUpdate ? (string) $latestUpdate->user_price  : '0';
-        $expire         = optional(app('system_payment'))->expire;
+        $latestUpdate = DB::table('system_updates')->orderBy('applied_at', 'desc')->first();
+        $currentVersion = $latestUpdate ? $latestUpdate->version : config('system.version', '1.0.0');
+        $userPrice = $latestUpdate ? (string) $latestUpdate->user_price : '0';
+        $expire = optional(app('system_payment'))->expire;
 
         if (blank($expire)) {
             return $data;
         }
 
         $data = [
-            'serial'          => $this->serial,
-            'expire'          => $expire,
-            'title'           => function_exists('setting') ? setting('invoice_title') : '',
-            'phone'           => function_exists('setting') ? setting('phone') : '',
-            'address'         => function_exists('setting') ? setting('address') : '',
-            'price'           => optional(app('system_payment'))->price,
+            'serial' => $this->serial,
+            'expire' => $expire,
+            'title' => function_exists('setting') ? setting('invoice_title') : '',
+            'phone' => function_exists('setting') ? setting('phone') : '',
+            'address' => function_exists('setting') ? setting('address') : '',
+            'price' => optional(app('system_payment'))->price,
             'current_version' => $currentVersion,
-            'user_price'      => $userPrice,
+            'user_price' => $userPrice,
         ];
 
         $this->saveLocal($data);
@@ -133,13 +135,13 @@ class LicenseService
 
     private function fromLocal(): ?array
     {
-        if (!file_exists($this->localPath)) {
+        if (! file_exists($this->localPath)) {
             return null;
         }
 
         $data = json_decode(file_get_contents($this->localPath), true);
 
-        if (empty($data) || !is_array($data)) {
+        if (empty($data) || ! is_array($data)) {
             return null;
         }
 
@@ -170,29 +172,29 @@ class LicenseService
     {
         try {
             // Read THIS client's own system_updates — never reads other clients' tables
-            $latestUpdate   = DB::table('system_updates')->orderBy('applied_at', 'desc')->first();
-            $currentVersion = $latestUpdate ? $latestUpdate->version             : config('system.version', '1.0.0');
-            $userPrice      = $latestUpdate ? (string) $latestUpdate->user_price  : '0';
+            $latestUpdate = DB::table('system_updates')->orderBy('applied_at', 'desc')->first();
+            $currentVersion = $latestUpdate ? $latestUpdate->version : config('system.version', '1.0.0');
+            $userPrice = $latestUpdate ? (string) $latestUpdate->user_price : '0';
 
             $response = Http::timeout(5)
                 ->withoutVerifying()
                 ->withoutRedirecting()
                 ->withHeaders(['X-License-Secret' => config('license.secret')])
                 ->post(config('license.write_url'), [
-                    'serial'          => $this->serial,
-                    'expire'          => $expire,
-                    'title'           => function_exists('setting') ? setting('invoice_title') : '',
-                    'phone'           => function_exists('setting') ? setting('phone') : '',
-                    'address'         => function_exists('setting') ? setting('address') : '',
-                    'price'           => optional(app('system_payment'))->price,
+                    'serial' => $this->serial,
+                    'expire' => $expire,
+                    'title' => function_exists('setting') ? setting('invoice_title') : '',
+                    'phone' => function_exists('setting') ? setting('phone') : '',
+                    'address' => function_exists('setting') ? setting('address') : '',
+                    'price' => optional(app('system_payment'))->price,
                     'current_version' => $currentVersion,
-                    'user_price'      => $userPrice,
+                    'user_price' => $userPrice,
                 ]);
 
             if ($response->failed()) {
                 Log::warning('LicenseService: push failed', [
                     'status' => $response->status(),
-                    'body'   => $response->body(),
+                    'body' => $response->body(),
                 ]);
             }
 
@@ -205,6 +207,6 @@ class LicenseService
 
     public function clearCache(): void
     {
-        Cache::forget('license_data_' . $this->serial);
+        Cache::forget('license_data_'.$this->serial);
     }
 }

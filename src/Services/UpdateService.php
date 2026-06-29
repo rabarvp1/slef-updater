@@ -3,10 +3,10 @@
 namespace Snawbar\SelfUpdater\Services;
 
 use Illuminate\Support\Facades\Artisan;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Http;
-use Illuminate\Support\Facades\Cache;
 
 class UpdateService
 {
@@ -21,11 +21,11 @@ class UpdateService
         try {
             $response = Http::timeout(5)->get(config('system.update_url'));
 
-            if (!$response->ok()) {
+            if (! $response->ok()) {
                 return [
-                    'status'     => false,
+                    'status' => false,
                     'has_update' => false,
-                    'message'    => 'Cannot connect to update server',
+                    'message' => 'Cannot connect to update server',
                 ];
             }
 
@@ -33,22 +33,22 @@ class UpdateService
 
         } catch (\Exception $e) {
             return [
-                'status'     => false,
+                'status' => false,
                 'has_update' => false,
-                'message'    => 'No internet connection or update server is offline.',
+                'message' => 'No internet connection or update server is offline.',
             ];
         }
 
-        if (!isset($latest['version'])) {
+        if (! isset($latest['version'])) {
             return [
-                'status'     => false,
+                'status' => false,
                 'has_update' => false,
-                'message'    => 'Invalid update response structure',
+                'message' => 'Invalid update response structure',
             ];
         }
 
         if (version_compare($latest['version'], $currentDatabaseVersion, '>')) {
-            if (!empty($latest['changelog_url'])) {
+            if (! empty($latest['changelog_url'])) {
                 try {
                     $changelogResponse = Http::timeout(5)->get($latest['changelog_url']);
                     $latest['changelog'] = $changelogResponse->ok() ? $changelogResponse->body() : '';
@@ -62,23 +62,23 @@ class UpdateService
             $latest['new_version'] = $latest['version'];
 
             return [
-                'status'     => true,
+                'status' => true,
                 'has_update' => true,
-                'data'       => $latest,
+                'data' => $latest,
             ];
         }
 
         return [
-            'status'     => false,
+            'status' => false,
             'has_update' => false,
-            'message'    => 'Your system database shows you are already updated to version ' . $currentDatabaseVersion,
+            'message' => 'Your system database shows you are already updated to version '.$currentDatabaseVersion,
         ];
     }
 
     public function downloadFileResumable(string $url, string $savePath, string $cacheProgressKey, int $startPct, int $endPct): void
     {
-        $maxRetries = 200; 
-        $retryDelay = 4;   
+        $maxRetries = 200;
+        $retryDelay = 4;
 
         for ($attempt = 0; $attempt < $maxRetries; $attempt++) {
             try {
@@ -88,11 +88,11 @@ class UpdateService
                 $totalBytes = (int) $headResponse->header('Content-Length');
 
                 if ($downloadedBytes >= $totalBytes && $totalBytes > 0) {
-                    return; 
+                    return;
                 }
 
                 $fp = fopen($savePath, $downloadedBytes > 0 ? 'ab' : 'wb');
-                
+
                 if (function_exists('curl_init')) {
                     $ch = curl_init();
                     curl_setopt($ch, CURLOPT_URL, $url);
@@ -103,11 +103,11 @@ class UpdateService
                     curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true);
 
                     if ($downloadedBytes > 0) {
-                        curl_setopt($ch, CURLOPT_RANGE, $downloadedBytes . '-');
+                        curl_setopt($ch, CURLOPT_RANGE, $downloadedBytes.'-');
                     }
 
                     @curl_setopt($ch, CURLOPT_NOPROGRESS, false);
-                    curl_setopt($ch, CURLOPT_PROGRESSFUNCTION, function($resource, $downloadSize, $downloaded, $uploadSize, $uploaded) use ($downloadedBytes, $totalBytes, $cacheProgressKey, $startPct, $endPct) {
+                    curl_setopt($ch, CURLOPT_PROGRESSFUNCTION, function ($resource, $downloadSize, $downloaded, $uploadSize, $uploaded) use ($downloadedBytes, $totalBytes, $cacheProgressKey, $startPct, $endPct) {
                         $currentDownloaded = $downloadedBytes + $downloaded;
                         if ($totalBytes > 0) {
                             $ratio = $currentDownloaded / $totalBytes;
@@ -126,41 +126,39 @@ class UpdateService
                         'verify' => false,
                     ];
                     if ($downloadedBytes > 0) {
-                        $options['headers'] = ['Range' => 'bytes=' . $downloadedBytes . '-'];
+                        $options['headers'] = ['Range' => 'bytes='.$downloadedBytes.'-'];
                     }
-                    $response = \Illuminate\Support\Facades\Http::timeout(45)->withOptions($options)->get($url);
+                    $response = Http::timeout(45)->withOptions($options)->get($url);
                     $result = $response->successful() || $response->status() === 206;
                     $statusCode = $response->status();
                 }
-                
+
                 fclose($fp);
 
                 if ($statusCode >= 400) {
-                    if (\Illuminate\Support\Facades\File::exists($savePath)) {
-                        \Illuminate\Support\Facades\File::delete($savePath);
+                    if (File::exists($savePath)) {
+                        File::delete($savePath);
                     }
-                    throw new \Exception("HTTP Error " . $statusCode . " while downloading update file.");
+                    throw new \Exception('HTTP Error '.$statusCode.' while downloading update file.');
                 }
 
                 if ($result && ($statusCode == 200 || $statusCode == 206)) {
-                    return; 
+                    return;
                 }
 
-                throw new \Exception("Network chunk stream cut off.");
-
+                throw new \Exception('Network chunk stream cut off.');
             } catch (\Exception $e) {
                 if (strpos($e->getMessage(), 'HTTP Error') !== false) {
                     throw $e;
                 }
-                Cache::put($cacheProgressKey . '_status', 'paused_network_offline', 120);
+                Cache::put($cacheProgressKey.'_status', 'paused_network_offline', 120);
                 sleep($retryDelay);
             }
         }
 
-        throw new \Exception("Cannot complete download. Internet connection timed out permanently.");
+        throw new \Exception('Cannot complete download. Internet connection timed out permanently.');
     }
 
-    
     public function extractToStaging(string $zipPath, string $stagePath): void
     {
         if (File::exists($stagePath)) {
@@ -170,20 +168,20 @@ class UpdateService
 
         $zip = new \ZipArchive;
         if ($zip->open($zipPath) !== true) {
-            throw new \Exception("Cannot open ZIP archive update bundle.");
+            throw new \Exception('Cannot open ZIP archive update bundle.');
         }
         $zip->extractTo($stagePath);
         $zip->close();
 
         $folders = array_values(array_filter(
             scandir($stagePath),
-            fn($item) => !in_array($item, ['.', '..', '__MACOSX', '.DS_Store'])
+            fn ($item) => ! in_array($item, ['.', '..', '__MACOSX', '.DS_Store'])
         ));
 
-        if (count($folders) === 1 && is_dir($stagePath . '/' . $folders[0])) {
-            $innerFolder = $stagePath . '/' . $folders[0];
-            $tempMovePath = $stagePath . '_temp_move';
-            
+        if (count($folders) === 1 && is_dir($stagePath.'/'.$folders[0])) {
+            $innerFolder = $stagePath.'/'.$folders[0];
+            $tempMovePath = $stagePath.'_temp_move';
+
             // Add a small delay for Windows to release file locks after ZIP extraction
             sleep(1);
 
@@ -204,7 +202,6 @@ class UpdateService
         }
     }
 
-    
     public function swapStagingToProduction(string $stagePath, string $destination): void
     {
         $this->atomicMergeLoop($stagePath, $destination);
@@ -212,12 +209,12 @@ class UpdateService
 
     private function atomicMergeLoop(string $source, string $destination): void
     {
-        $dirContents          = scandir($source);
+        $dirContents = scandir($source);
         $protectedDirectories = ['storage', 'bootstrap', 'node_modules', '.git'];
-        $protectedFiles       = ['.env'];
-        $protectedPaths       = [
-            'public/images/bill',     
-            'public/images/products', 
+        $protectedFiles = ['.env'];
+        $protectedPaths = [
+            'public/images/bill',
+            'public/images/products',
         ];
 
         foreach ($dirContents as $item) {
@@ -225,13 +222,13 @@ class UpdateService
                 continue;
             }
 
-            $srcPath  = $source . DIRECTORY_SEPARATOR . $item;
-            $destPath = $destination . DIRECTORY_SEPARATOR . $item;
+            $srcPath = $source.DIRECTORY_SEPARATOR.$item;
+            $destPath = $destination.DIRECTORY_SEPARATOR.$item;
             $normalizedDest = str_replace('\\', '/', $destPath);
 
             $isProtected = false;
             foreach ($protectedPaths as $protectedPath) {
-                if (str_contains($normalizedDest, '/' . trim($protectedPath, '/'))) {
+                if (str_contains($normalizedDest, '/'.trim($protectedPath, '/'))) {
                     $isProtected = true;
                     break;
                 }
@@ -249,7 +246,7 @@ class UpdateService
                     File::deleteDirectory($destPath);
                 }
 
-                if (!file_exists($destPath)) {
+                if (! file_exists($destPath)) {
                     mkdir($destPath, 0755, true);
                 }
 
@@ -267,17 +264,18 @@ class UpdateService
     public function backupDatabase()
     {
         $path = storage_path('app/backups');
-        if (!File::exists($path)) {
+        if (! File::exists($path)) {
             File::makeDirectory($path, 0755, true);
         }
 
-        $file = $path . '/DataBase_Backup_' . date('Y_m_d_H_i_s') . '.sql';
+        $file = $path.'/DataBase_Backup_'.date('Y_m_d_H_i_s').'.sql';
         $mysqldumpPath = env('DUMP_BINARY_PATH', 'mysqldump');
-        
-        $passwordFlag = env('DB_PASSWORD') ? '-p"' . env('DB_PASSWORD') . '"' : '';
-        $command = "\"{$mysqldumpPath}\" -u" . env('DB_USERNAME') . " {$passwordFlag} " . env('DB_DATABASE') . " > \"{$file}\"";
+
+        $passwordFlag = env('DB_PASSWORD') ? '-p"'.env('DB_PASSWORD').'"' : '';
+        $command = "\"{$mysqldumpPath}\" -u".env('DB_USERNAME')." {$passwordFlag} ".env('DB_DATABASE')." > \"{$file}\"";
 
         exec($command);
+
         return $file;
     }
 
