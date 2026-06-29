@@ -2,9 +2,9 @@
 
 namespace Snawbar\SelfUpdater;
 
+use Snawbar\SelfUpdater\Commands\SelfUpdaterCommand;
 use Spatie\LaravelPackageTools\Package;
 use Spatie\LaravelPackageTools\PackageServiceProvider;
-use Snawbar\SelfUpdater\Commands\SelfUpdaterCommand;
 
 class SelfUpdaterServiceProvider extends PackageServiceProvider
 {
