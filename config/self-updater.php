@@ -31,9 +31,9 @@ return [
     | manager server.
     |
     */
-    'license_url'        => env('SELF_UPDATER_LICENSE_URL', config('license.url')),
-    'license_write_url'  => env('SELF_UPDATER_LICENSE_WRITE_URL', config('license.write_url')),
-    'license_secret'     => env('SELF_UPDATER_LICENSE_SECRET', config('license.secret')),
+    'license_url' => env('SELF_UPDATER_LICENSE_URL', config('license.url')),
+    'license_write_url' => env('SELF_UPDATER_LICENSE_WRITE_URL', config('license.write_url')),
+    'license_secret' => env('SELF_UPDATER_LICENSE_SECRET', config('license.secret')),
     'license_local_path' => env('SELF_UPDATER_LICENSE_LOCAL_PATH', config('license.local_path', base_path('license.json'))),
 
 ];
