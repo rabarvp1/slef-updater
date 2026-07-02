@@ -12,6 +12,13 @@ class UpdateService
 {
     public function checkUpdate()
     {
+        if (!config('self-updater.enabled', true)) {
+            return [
+                'status' => false,
+                'has_update' => false,
+                'message' => 'Self-updater is currently disabled in the configuration.',
+            ];
+        }
         $latestAppliedUpdate = DB::table('system_updates')
             ->orderBy('applied_at', 'desc')
             ->first();

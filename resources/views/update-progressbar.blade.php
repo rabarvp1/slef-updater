@@ -1,3 +1,4 @@
+@if(config('self-updater.enabled', true))
 <div class="system-update-box">
 
 <form id="system_update_form" action="{{ route('system.update') }}" method="POST" class="d-flex justify-content-between align-items-center mb-4">
@@ -31,3 +32,4 @@
         </div>
     </div>
 </div>
+@endif

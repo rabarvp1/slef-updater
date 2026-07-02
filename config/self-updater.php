@@ -3,6 +3,17 @@
 return [
     /*
     |--------------------------------------------------------------------------
+    | Enable/Disable Self Updater
+    |--------------------------------------------------------------------------
+    |
+    | This value determines whether the self-updater routes and functionality
+    | should be enabled. By default, it is set to true.
+    |
+    */
+    'enabled' => env('SELF_UPDATER_ENABLED', true),
+
+    /*
+    |--------------------------------------------------------------------------
     | Update Server Configuration
     |--------------------------------------------------------------------------
     |

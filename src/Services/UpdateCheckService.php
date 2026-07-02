@@ -10,6 +10,10 @@ class UpdateCheckService
 {
     public function check(): ?array
     {
+        if (!config('self-updater.enabled', true)) {
+            return ['has_update' => false, 'show_force_warning' => false];
+        }
+
         // Cache the result for 24 hours
         return Cache::remember('system_update_check', now()->addDay(), function () {
             try {
