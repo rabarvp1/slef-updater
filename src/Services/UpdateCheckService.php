@@ -10,7 +10,7 @@ class UpdateCheckService
 {
     public function check(): ?array
     {
-        if (!config('self-updater.enabled', true)) {
+        if (! config('self-updater.enabled', true)) {
             return ['has_update' => false, 'show_force_warning' => false];
         }
 
