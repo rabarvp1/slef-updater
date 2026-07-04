@@ -214,8 +214,8 @@ class CompareDatabasesCommand extends Command
             $tableName = $table->TABLE_NAME;
 
             $createStmt = DB::connection('sync_source')->selectOne("SHOW CREATE TABLE `{$tableName}`");
-            
-            $createStmtArray = (array)$createStmt;
+
+            $createStmtArray = (array) $createStmt;
             $createSql = $createStmtArray['Create Table'] ?? $createStmtArray['create table'] ?? '';
 
             $this->line("  🟢 Will create: <fg=green>{$tableName}</>");
