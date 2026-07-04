@@ -35,11 +35,14 @@ class LicenseService
         return Carbon::today()->lte($expire);
     }
 
-    public function info(): ?array
+    public function info(): array
     {
         $data = $this->load();
 
-        return empty($data['expire']) ? null : $data;
+        // Always return an array so callers can safely access ['expire'] without
+        // getting "attempt to read property on null". When there is no license,
+        // return a stub with expire = null so the middleware falls through safely.
+        return empty($data['expire']) ? ['expire' => null] : $data;
     }
 
     private function load(): array
