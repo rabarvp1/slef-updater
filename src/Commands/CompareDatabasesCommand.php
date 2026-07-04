@@ -46,6 +46,8 @@ class CompareDatabasesCommand extends Command
                 return self::FAILURE;
             }
 
+            $this->setupConnections();
+
             if ($this->dryRun) {
                 $this->warn('🔍 DRY RUN MODE - No changes will be applied');
                 $this->newLine();
@@ -134,11 +136,20 @@ class CompareDatabasesCommand extends Command
         return $this->confirm('👉 Do you want to execute these changes?', false);
     }
 
-    private function switchDatabase(string $database): void
+    private function setupConnections(): void
     {
-        config(['database.connections.mysql.database' => $database]);
-        DB::purge('mysql');
-        DB::reconnect('mysql');
+        $defaultConfig = config('database.connections.mysql');
+
+        config(['database.connections.sync_source' => array_merge($defaultConfig, [
+            'database' => $this->source,
+        ])]);
+
+        config(['database.connections.sync_target' => array_merge($defaultConfig, [
+            'database' => $this->target,
+        ])]);
+
+        DB::purge('sync_source');
+        DB::purge('sync_target');
     }
 
     private function executeChanges(): void
@@ -146,33 +157,24 @@ class CompareDatabasesCommand extends Command
         $this->info("\n⏳ Executing changes dynamically on target connection...");
         $this->newLine();
 
-        $this->switchDatabase($this->target);
+        $conn = DB::connection('sync_target');
 
-        DB::statement('SET FOREIGN_KEY_CHECKS=0');
+        $conn->statement('SET FOREIGN_KEY_CHECKS=0');
 
         $bar = $this->output->createProgressBar(count($this->queries));
         $bar->setFormat('  %current%/%max% [%bar%] %percent:3s%%');
 
-        // Disable FK checks for the whole batch
-        DB::statement('SET FOREIGN_KEY_CHECKS=0');
-
         try {
             foreach ($this->queries as $query) {
-                DB::statement($query['sql']);
+                $conn->statement($query['sql']);
                 $bar->advance();
             }
         } finally {
-            DB::statement('SET FOREIGN_KEY_CHECKS=1');
+            $conn->statement('SET FOREIGN_KEY_CHECKS=1');
         }
-
-        DB::statement('SET FOREIGN_KEY_CHECKS=1');
 
         $bar->finish();
         $this->newLine(2);
-
-        // Restore original database
-        config(['database.connections.mysql.database' => $this->target]);
-        DB::purge('mysql');
     }
 
     private function validateDatabases(): bool
@@ -211,13 +213,10 @@ class CompareDatabasesCommand extends Command
         foreach ($missingTables as $table) {
             $tableName = $table->TABLE_NAME;
 
-            $this->switchDatabase($this->source);
-            $createStmt = DB::selectOne("SHOW CREATE TABLE `{$tableName}`");
-
-            $createStmtArray = (array) $createStmt;
+            $createStmt = DB::connection('sync_source')->selectOne("SHOW CREATE TABLE `{$tableName}`");
+            
+            $createStmtArray = (array)$createStmt;
             $createSql = $createStmtArray['Create Table'] ?? $createStmtArray['create table'] ?? '';
-
-            $this->switchDatabase($this->target);
 
             $this->line("  🟢 Will create: <fg=green>{$tableName}</>");
 
@@ -496,7 +495,7 @@ class CompareDatabasesCommand extends Command
         }
 
         if ($col->COLUMN_DEFAULT !== null) {
-            $sql .= ' DEFAULT '.DB::getPdo()->quote($col->COLUMN_DEFAULT);
+            $sql .= ' DEFAULT '.DB::connection('sync_target')->getPdo()->quote($col->COLUMN_DEFAULT);
         }
 
         if ($col->EXTRA) {
@@ -558,11 +557,10 @@ class CompareDatabasesCommand extends Command
 
     private function cleanOrphanedRecords(object $col, object $fk): void
     {
-        $this->switchDatabase($this->target);
-
+        $connTarget = DB::connection('sync_target');
         $isNullable = $col->IS_NULLABLE === 'YES';
 
-        $orphanedRes = DB::selectOne("
+        $orphanedRes = $connTarget->selectOne("
             SELECT COUNT(*) as count
             FROM `{$col->TABLE_NAME}` t
             WHERE t.`{$col->COLUMN_NAME}` IS NOT NULL
@@ -594,14 +592,14 @@ class CompareDatabasesCommand extends Command
             } else {
                 // Modified: check if the 'suppliers' table actually exists in the target DB
                 // before doing the POS-specific supplier logic, so it works on any system.
-                $hasSuppliersTable = DB::selectOne("
+                $hasSuppliersTable = $connTarget->selectOne("
                     SELECT count(*) as count 
                     FROM information_schema.TABLES 
                     WHERE TABLE_SCHEMA = ? AND TABLE_NAME = 'suppliers'
                 ", [$this->target])->count > 0;
 
                 if ($hasSuppliersTable && $col->COLUMN_NAME === 'supplier_id' && $fk->REFERENCED_TABLE_NAME === 'suppliers') {
-                    $columnExists = DB::selectOne('
+                    $columnExists = $connTarget->selectOne('
                         SELECT COUNT(*) as count
                         FROM information_schema.COLUMNS
                         WHERE TABLE_SCHEMA = ?
@@ -610,7 +608,7 @@ class CompareDatabasesCommand extends Command
                     ', [$this->target, $col->TABLE_NAME, $col->COLUMN_NAME])->count > 0;
 
                     if (! $columnExists) {
-                        $maxSupplierId = DB::table('suppliers')->max('id') ?? 0;
+                        $maxSupplierId = $connTarget->table('suppliers')->max('id') ?? 0;
                         $defaultSupplierId = $maxSupplierId + 1;
 
                         $this->queries[] = [
@@ -620,14 +618,14 @@ class CompareDatabasesCommand extends Command
                                       VALUES ({$defaultSupplierId}, 'دیاری نەکراو', '', '', 0)",
                         ];
                     } else {
-                        $defaultSupplier = DB::table('suppliers')
+                        $defaultSupplier = $connTarget->table('suppliers')
                             ->where('name', 'دیاری نەکراو')
                             ->first();
 
                         if ($defaultSupplier) {
                             $defaultSupplierId = $defaultSupplier->id;
                         } else {
-                            $maxSupplierId = DB::table('suppliers')->max('id') ?? 0;
+                            $maxSupplierId = $connTarget->table('suppliers')->max('id') ?? 0;
                             $defaultSupplierId = $maxSupplierId + 1;
 
                             $this->queries[] = [
