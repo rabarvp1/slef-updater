@@ -254,6 +254,7 @@ class UpdateService
                         File::deleteDirectory($destPath);
                     }
                     rename($srcPath, $destPath);
+
                     continue;
                 }
 

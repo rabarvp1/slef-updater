@@ -79,7 +79,7 @@ class AutoUpdateService
             }
 
             // Only run composer if the json changed AND there is no bundled vendor folder provided
-            $composerChanged = ($composerJsonChanged || $composerLockChanged || ! File::exists(base_path('vendor'))) && !$hasBundledVendor;
+            $composerChanged = ($composerJsonChanged || $composerLockChanged || ! File::exists(base_path('vendor'))) && ! $hasBundledVendor;
 
             Cache::put('update_current_progress_status', 'deploying_files', 600);
             Cache::put('update_current_progress', 90, 600);
@@ -125,7 +125,7 @@ class AutoUpdateService
             }
 
             try {
-                // Clear cache last, because if this crashes due to a broken state, 
+                // Clear cache last, because if this crashes due to a broken state,
                 // we don't want it preventing the app from coming back online.
                 Artisan::call('optimize:clear');
             } catch (\Throwable $e) {
