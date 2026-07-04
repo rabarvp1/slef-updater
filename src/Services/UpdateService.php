@@ -12,7 +12,7 @@ class UpdateService
 {
     public function checkUpdate()
     {
-        if (!config('self-updater.enabled', true)) {
+        if (! config('self-updater.enabled', true)) {
             return [
                 'status' => false,
                 'has_update' => false,
