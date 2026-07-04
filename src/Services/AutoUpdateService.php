@@ -2,7 +2,6 @@
 
 namespace Snawbar\SelfUpdater\Services;
 
-use App\Services\DatabaseSyncService;
 use Exception;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Cache;
@@ -12,6 +11,10 @@ class AutoUpdateService
 {
     public function run(array $data): void
     {
+        // Prevent script from terminating during long downloads or heavy SQL imports
+        set_time_limit(0);
+        ini_set('memory_limit', '-1');
+
         $stagingPath = storage_path('app/update_staging_dir');
         $zipPath = storage_path('app/update_staging_package.zip');
         $sqlPath = storage_path('app/update_staging_database.sql');
@@ -42,15 +45,12 @@ class AutoUpdateService
             Cache::put('update_current_progress', 80, 600);
             $update->extractToStaging($zipPath, $stagingPath);
 
-            if (File::exists($stagingPath.'/vendor')) {
-                File::deleteDirectory($stagingPath.'/vendor');
-            }
+            // Check if the update bundle includes its own vendor folder
+            $hasBundledVendor = File::exists($stagingPath.'/vendor');
 
             if (! empty($sqlUrl) && File::exists($sqlPath)) {
                 Cache::put('update_current_progress_status', 'syncing_database', 600);
                 Cache::put('update_current_progress', 85, 600);
-                // We'll leave the DatabaseSyncService as is, assuming it remains in the main app
-                // If it should also be in the package, we would need to move it as well.
                 app(DatabaseSyncService::class)->refreshLiteTempWithLocalFile($sqlPath);
                 // Refresh the cache after the sync completes so the TTL doesn't expire mid-step
                 Cache::put('update_current_progress', 88, 600);
@@ -78,7 +78,8 @@ class AutoUpdateService
                 }
             }
 
-            $composerChanged = $composerJsonChanged || $composerLockChanged || ! File::exists(base_path('vendor'));
+            // Only run composer if the json changed AND there is no bundled vendor folder provided
+            $composerChanged = ($composerJsonChanged || $composerLockChanged || ! File::exists(base_path('vendor'))) && !$hasBundledVendor;
 
             Cache::put('update_current_progress_status', 'deploying_files', 600);
             Cache::put('update_current_progress', 90, 600);
@@ -101,7 +102,7 @@ class AutoUpdateService
             Cache::put('update_current_progress', 100, 600);
             Cache::put('update_current_progress_status', 'completed', 600);
 
-        } catch (Exception $e) {
+        } catch (\Throwable $e) {
             Cache::put('update_current_progress_status', 'failed', 600);
             Cache::put('update_current_progress_error', $e->getMessage(), 600);
             throw new Exception('Auto-update failed: '.$e->getMessage());
@@ -116,8 +117,20 @@ class AutoUpdateService
                 File::delete($sqlPath);
             }
 
-            Artisan::call('optimize:clear');
-            Artisan::call('up');
+            try {
+                // Always ensure the application comes back online first!
+                Artisan::call('up');
+            } catch (\Throwable $e) {
+                // Ignore if it fails to come up
+            }
+
+            try {
+                // Clear cache last, because if this crashes due to a broken state, 
+                // we don't want it preventing the app from coming back online.
+                Artisan::call('optimize:clear');
+            } catch (\Throwable $e) {
+                // Ignore
+            }
         }
     }
 }

@@ -21,6 +21,9 @@ class SelfUpdaterServiceProvider extends PackageServiceProvider
             ->hasViews()
             ->hasRoute('web')
             ->hasMigration('create_self_updater_table')
-            ->hasCommand(SelfUpdaterCommand::class);
+            ->hasCommands([
+                SelfUpdaterCommand::class,
+                \Snawbar\SelfUpdater\Commands\CompareDatabasesCommand::class,
+            ]);
     }
 }

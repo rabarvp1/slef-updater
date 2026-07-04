@@ -249,8 +249,12 @@ class UpdateService
                     continue;
                 }
 
-                if (strtolower($item) === 'vendor' && file_exists($destPath)) {
-                    File::deleteDirectory($destPath);
+                if (strtolower($item) === 'vendor') {
+                    if (file_exists($destPath)) {
+                        File::deleteDirectory($destPath);
+                    }
+                    rename($srcPath, $destPath);
+                    continue;
                 }
 
                 if (! file_exists($destPath)) {
