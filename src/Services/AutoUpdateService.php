@@ -17,8 +17,8 @@ class AutoUpdateService
         $sqlPath = storage_path('app/update_staging_database.sql');
 
         try {
-            Cache::put('update_current_progress', 0, 120);
-            Cache::put('update_current_progress_status', 'running', 120);
+            Cache::put('update_current_progress', 0, 600);
+            Cache::put('update_current_progress_status', 'running', 600);
 
             $update = app(UpdateService::class);
 
@@ -29,17 +29,17 @@ class AutoUpdateService
                 throw new Exception('The update server did not provide a codebase archive url.');
             }
 
-            Cache::put('update_current_progress_status', 'downloading_zip', 120);
+            Cache::put('update_current_progress_status', 'downloading_zip', 600);
             $update->downloadFileResumable($zipUrl, $zipPath, 'update_current_progress', 0, 50);
 
             $sqlUrl = $data['sql_url'] ?? '';
             if (! empty($sqlUrl)) {
-                Cache::put('update_current_progress_status', 'downloading_sql', 120);
+                Cache::put('update_current_progress_status', 'downloading_sql', 600);
                 $update->downloadFileResumable($sqlUrl, $sqlPath, 'update_current_progress', 50, 70);
             }
 
-            Cache::put('update_current_progress_status', 'extracting_code', 120);
-            Cache::put('update_current_progress', 80, 120);
+            Cache::put('update_current_progress_status', 'extracting_code', 600);
+            Cache::put('update_current_progress', 80, 600);
             $update->extractToStaging($zipPath, $stagingPath);
 
             if (File::exists($stagingPath.'/vendor')) {
@@ -47,11 +47,14 @@ class AutoUpdateService
             }
 
             if (! empty($sqlUrl) && File::exists($sqlPath)) {
-                Cache::put('update_current_progress_status', 'syncing_database', 120);
-                Cache::put('update_current_progress', 85, 120);
+                Cache::put('update_current_progress_status', 'syncing_database', 600);
+                Cache::put('update_current_progress', 85, 600);
                 // We'll leave the DatabaseSyncService as is, assuming it remains in the main app
                 // If it should also be in the package, we would need to move it as well.
                 app(DatabaseSyncService::class)->refreshLiteTempWithLocalFile($sqlPath);
+                // Refresh the cache after the sync completes so the TTL doesn't expire mid-step
+                Cache::put('update_current_progress', 88, 600);
+                Cache::put('update_current_progress_status', 'syncing_database', 600);
             }
 
             Artisan::call('down');
@@ -77,30 +80,30 @@ class AutoUpdateService
 
             $composerChanged = $composerJsonChanged || $composerLockChanged || ! File::exists(base_path('vendor'));
 
-            Cache::put('update_current_progress_status', 'deploying_files', 120);
-            Cache::put('update_current_progress', 90, 120);
+            Cache::put('update_current_progress_status', 'deploying_files', 600);
+            Cache::put('update_current_progress', 90, 600);
 
             $update->swapStagingToProduction($stagingPath, base_path());
 
             if ($composerChanged) {
-                Cache::put('update_current_progress_status', 'updating_dependencies', 120);
-                Cache::put('update_current_progress', 95, 120);
+                Cache::put('update_current_progress_status', 'updating_dependencies', 600);
+                Cache::put('update_current_progress', 95, 600);
 
                 Artisan::call('app:composer-update');
             } else {
-                Cache::put('update_current_progress', 95, 120);
+                Cache::put('update_current_progress', 95, 600);
             }
 
             $version = $data['new_version'] ?? $data['version'] ?? config('self-updater.version', '1.0.0');
             $price = $data['price'] ?? 0;
             $update->finalize($version, $price);
 
-            Cache::put('update_current_progress', 100, 120);
-            Cache::put('update_current_progress_status', 'completed', 120);
+            Cache::put('update_current_progress', 100, 600);
+            Cache::put('update_current_progress_status', 'completed', 600);
 
         } catch (Exception $e) {
-            Cache::put('update_current_progress_status', 'failed', 120);
-            Cache::put('update_current_progress_error', $e->getMessage(), 120);
+            Cache::put('update_current_progress_status', 'failed', 600);
+            Cache::put('update_current_progress_error', $e->getMessage(), 600);
             throw new Exception('Auto-update failed: '.$e->getMessage());
         } finally {
             if (File::exists($stagingPath)) {

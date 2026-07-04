@@ -48,11 +48,8 @@ class LicenseService
 
         return Cache::remember($cacheKey, now()->addDay(), function () {
 
-            // Step 1: Try server (online), fall back to local file (offline)
             $data = $this->fromServer() ?? $this->fromLocal() ?? [];
 
-            // Step 2: Inject live settings from THIS client's own database
-            // invoice_title = client name (NOT setting('name'))
             if (! empty($data) && function_exists('setting')) {
                 $data['title'] = setting('invoice_title');
                 $data['phone'] = setting('phone');
