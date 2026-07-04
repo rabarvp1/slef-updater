@@ -26,8 +26,11 @@ class CompareDatabasesCommand extends Command
     ];
 
     private array $queries = [];
+
     private string $source;
+
     private string $target;
+
     private bool $dryRun;
 
     public function handle(): int
@@ -52,11 +55,13 @@ class CompareDatabasesCommand extends Command
 
             if (empty($this->queries)) {
                 $this->info('No changes needed - databases are already in sync');
+
                 return self::SUCCESS;
             }
 
             if (! $this->dryRun && ! $this->confirmExecution()) {
                 $this->warn('❌ Operation cancelled by user');
+
                 return self::FAILURE;
             }
 
@@ -103,6 +108,7 @@ class CompareDatabasesCommand extends Command
         if ($this->option('auto')) {
             $this->info('🤖 AUTO MODE - Changes will be applied automatically');
             $this->newLine();
+
             return true;
         }
 
@@ -178,11 +184,13 @@ class CompareDatabasesCommand extends Command
 
         if (! in_array($this->source, $existing)) {
             $this->error("Source database '{$this->source}' does not exist");
+
             return false;
         }
 
         if (! in_array($this->target, $existing)) {
             $this->error("Target database '{$this->target}' does not exist");
+
             return false;
         }
 
@@ -205,8 +213,8 @@ class CompareDatabasesCommand extends Command
 
             $this->switchDatabase($this->source);
             $createStmt = DB::selectOne("SHOW CREATE TABLE `{$tableName}`");
-            
-            $createStmtArray = (array)$createStmt;
+
+            $createStmtArray = (array) $createStmt;
             $createSql = $createStmtArray['Create Table'] ?? $createStmtArray['create table'] ?? '';
 
             $this->switchDatabase($this->target);
@@ -563,7 +571,7 @@ class CompareDatabasesCommand extends Command
                   WHERE r.`{$fk->REFERENCED_COLUMN_NAME}` = t.`{$col->COLUMN_NAME}`
               )
         ");
-        
+
         $orphanedCount = $orphanedRes->count ?? 0;
 
         if ($orphanedCount > 0) {
@@ -672,6 +680,7 @@ class CompareDatabasesCommand extends Command
 
         if ($total === 0) {
             $this->info('No changes needed - databases are already in sync');
+
             return;
         }
 

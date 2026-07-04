@@ -2,6 +2,7 @@
 
 namespace Snawbar\SelfUpdater;
 
+use Snawbar\SelfUpdater\Commands\CompareDatabasesCommand;
 use Snawbar\SelfUpdater\Commands\SelfUpdaterCommand;
 use Spatie\LaravelPackageTools\Package;
 use Spatie\LaravelPackageTools\PackageServiceProvider;
@@ -23,7 +24,7 @@ class SelfUpdaterServiceProvider extends PackageServiceProvider
             ->hasMigration('create_self_updater_table')
             ->hasCommands([
                 SelfUpdaterCommand::class,
-                \Snawbar\SelfUpdater\Commands\CompareDatabasesCommand::class,
+                CompareDatabasesCommand::class,
             ]);
     }
 }
