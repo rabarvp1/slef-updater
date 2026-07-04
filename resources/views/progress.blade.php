@@ -26,7 +26,7 @@ function startSafeSystemUpdate() {
 
     let progressInterval = setInterval(function() {
         $.ajax({
-            url: '/system/update-progress',
+            url: '{{ route("system.update-progress") }}',
             type: 'GET',
             dataType: 'json',
             success: function(data) {
