@@ -10,7 +10,7 @@
                 <div class="pe-3">
 
                     <h2 class="update-modal-title">
-                        ســوپـــەر کــــاشــێـــر
+                       {{__('all.super-cashier')}}
                     </h2>
 
                     <hr class="update-header-divider">
