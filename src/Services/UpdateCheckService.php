@@ -14,8 +14,8 @@ class UpdateCheckService
             return ['has_update' => false, 'show_force_warning' => false];
         }
 
-        // Cache the result for 24 hours
-        return Cache::remember('system_update_check', now()->addDay(), function () {
+        // Cache the result for 6 hours
+        return Cache::remember('system_update_check', now()->addHours(6), function () {
             try {
                 $response = Http::timeout(5)->get(config('self-updater.update_url'));
                 if (! $response->ok()) {
@@ -27,7 +27,7 @@ class UpdateCheckService
                 $currentVersion = DB::table('system_updates')->orderby('applied_at', 'desc')->value('version') ?? config('self-updater.version', '1.0.0');
 
                 // Push current version + user_price for every serial in license.json
-                // This runs once per cache cycle (24 hours)
+                // This runs once per cache cycle (6 hours)
                 $this->pushLicenseVersion($currentVersion);
 
                 if (version_compare($serverData['version'], $currentVersion, '>')) {

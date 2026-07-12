@@ -49,7 +49,7 @@ class LicenseService
     {
         $cacheKey = 'license_data_'.$this->serial;
 
-        return Cache::remember($cacheKey, now()->addDay(), function () {
+        return Cache::remember($cacheKey, now()->addHours(6), function () {
 
             $data = $this->fromServer() ?? $this->fromLocal() ?? [];
 
