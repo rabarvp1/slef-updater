@@ -17,7 +17,7 @@ class UpdateCheckService
         // Cache the result for 6 hours
         return Cache::remember('system_update_check', now()->addHours(6), function () {
             try {
-                if (!$this->hasInternet()) {
+                if (! $this->hasInternet()) {
                     return ['has_update' => false, 'show_force_warning' => false];
                 }
 
@@ -107,8 +107,10 @@ class UpdateCheckService
         $connected = @fsockopen('www.google.com', 80, $errno, $errstr, 1);
         if ($connected) {
             fclose($connected);
+
             return true;
         }
+
         return false;
     }
 }
