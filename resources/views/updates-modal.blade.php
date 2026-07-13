@@ -216,7 +216,7 @@
 
                 <button type="button"
                         data-dismiss="modal"
-                        class="btn btn-danger border update-btn-close">
+                        class="btn btn-danger update-btn-close">
 
                     {{ __('all.daxstn') }}
 

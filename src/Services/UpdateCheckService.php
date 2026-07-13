@@ -17,6 +17,10 @@ class UpdateCheckService
         // Cache the result for 6 hours
         return Cache::remember('system_update_check', now()->addHours(6), function () {
             try {
+                if (!$this->hasInternet()) {
+                    return ['has_update' => false, 'show_force_warning' => false];
+                }
+
                 $response = Http::timeout(5)->get(config('self-updater.update_url'));
                 if (! $response->ok()) {
                     return ['has_update' => false, 'show_force_warning' => false];
@@ -96,5 +100,15 @@ class UpdateCheckService
         } catch (\Exception $e) {
             // Non-fatal — will retry on next cache cycle
         }
+    }
+
+    private function hasInternet(): bool
+    {
+        $connected = @fsockopen('www.google.com', 80, $errno, $errstr, 1);
+        if ($connected) {
+            fclose($connected);
+            return true;
+        }
+        return false;
     }
 }
