@@ -221,6 +221,14 @@ class LicenseService
         }
     }
 
+    public function sync(): void
+    {
+        $data = $this->fromLocal();
+        if (!empty($data['expire'])) {
+            $this->pushToServer($data['expire']);
+        }
+    }
+
     public function clearCache(): void
     {
         Cache::forget('license_data_'.$this->serial);
