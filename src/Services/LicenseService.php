@@ -197,13 +197,13 @@ class LicenseService
             $clientSettings = [];
             if (Schema::hasTable('settings')) {
                 $flatSettings = DB::table('settings')->pluck('value', 'key')->toArray();
-                
+
                 $schema = [];
                 $bladePath = resource_path('views/setting/form.blade.php');
-                if (!file_exists($bladePath)) {
+                if (! file_exists($bladePath)) {
                     $bladePath = resource_path('views/setting/index.blade.php');
                 }
-                
+
                 if (file_exists($bladePath)) {
                     $content = file_get_contents($bladePath);
                     if (preg_match_all('/<select[^>]*name=["\']([^"\']+)["\'][^>]*>(.*?)<\/select>/is', $content, $selectMatches, PREG_SET_ORDER)) {
@@ -219,7 +219,9 @@ class LicenseService
                                         $label = function_exists('trans') ? trans($transMatch[1]) : $transMatch[1];
                                     }
                                     $label = trim(str_replace(['{{', '}}'], '', $label));
-                                    if (empty($label)) $label = $val;
+                                    if (empty($label)) {
+                                        $label = $val;
+                                    }
                                     $options[$val] = $label;
                                 }
                             }
@@ -227,22 +229,26 @@ class LicenseService
                         }
                     }
                     if (preg_match_all('/<input[^>]*type=["\']color["\'][^>]*name=["\']([^"\']+)["\']/i', $content, $matches)) {
-                        foreach ($matches[1] as $name) $schema[$name] = ['type' => 'color'];
+                        foreach ($matches[1] as $name) {
+                            $schema[$name] = ['type' => 'color'];
+                        }
                     }
                     if (preg_match_all('/<input[^>]*name=["\']([^"\']+)["\'][^>]*type=["\']color["\']/i', $content, $matches2)) {
-                        foreach ($matches2[1] as $name) $schema[$name] = ['type' => 'color'];
+                        foreach ($matches2[1] as $name) {
+                            $schema[$name] = ['type' => 'color'];
+                        }
                     }
                 }
-                
+
                 // Build rich structure
                 foreach ($flatSettings as $k => $v) {
                     if ($k === 'settings_schema' || $k === 'settings_html') {
                         continue;
                     }
-                    
+
                     $type = 'string';
                     $options = [];
-                    
+
                     if (isset($schema[$k])) {
                         if (is_array($schema[$k])) {
                             $type = $schema[$k]['type'] ?? 'string';
@@ -252,23 +258,23 @@ class LicenseService
                         }
                     } else {
                         // Fallback guesses if not in schema
-                        $lowerVal = strtolower((string)$v);
+                        $lowerVal = strtolower((string) $v);
                         if ($lowerVal === 'true' || $lowerVal === 'false' || is_bool($v)) {
                             $type = 'boolean';
                         } elseif (is_numeric($v)) {
                             $type = 'number';
                         }
                     }
-                    
+
                     $richObj = [
                         'type' => $type,
                         'value' => $v,
                     ];
-                    
-                    if (!empty($options)) {
+
+                    if (! empty($options)) {
                         $richObj['options'] = $options;
                     }
-                    
+
                     $clientSettings[$k] = $richObj;
                 }
             }
