@@ -224,7 +224,7 @@ class LicenseService
     public function sync(): void
     {
         $data = $this->fromLocal();
-        if (!empty($data['expire'])) {
+        if (! empty($data['expire'])) {
             $this->pushToServer($data['expire']);
         }
     }
