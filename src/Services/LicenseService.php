@@ -206,6 +206,9 @@ class LicenseService
                 
                 if (file_exists($bladePath)) {
                     $content = file_get_contents($bladePath);
+                    $originalLocale = app()->getLocale();
+                    app()->setLocale('ku');
+                    
                     if (preg_match_all('/<select[^>]*name=["\']([^"\']+)["\'][^>]*>(.*?)<\/select>/is', $content, $selectMatches, PREG_SET_ORDER)) {
                         foreach ($selectMatches as $match) {
                             $name = $match[1];
@@ -216,7 +219,7 @@ class LicenseService
                                     $val = $opt[1];
                                     $label = strip_tags($opt[2]);
                                     if (preg_match('/__\([\'"]([^\'"]+)[\'"]\)/', $label, $transMatch)) {
-                                        $label = function_exists('trans') ? trans($transMatch[1]) : $transMatch[1];
+                                        $label = function_exists('trans') ? trans($transMatch[1], [], 'ku') : $transMatch[1];
                                     }
                                     $label = trim(str_replace(['{{', '}}'], '', $label));
                                     if (empty($label)) $label = $val;
@@ -230,8 +233,27 @@ class LicenseService
                         foreach ($matches[1] as $name) $schema[$name] = ['type' => 'color'];
                     }
                     if (preg_match_all('/<input[^>]*name=["\']([^"\']+)["\'][^>]*type=["\']color["\']/i', $content, $matches2)) {
-                        foreach ($matches2[1] as $name) $schema[$name] = ['type' => 'color'];
+                        foreach ($matches2[1] as $name) {
+                            if (!isset($schema[$name])) $schema[$name] = [];
+                            $schema[$name]['type'] = 'color';
+                        }
                     }
+                    
+                    if (preg_match_all('/<label>(.*?)<\/label>\s*<(?:input|select)[^>]*name=[\'"]([^\'"]+)[\'"]/is', $content, $labelMatches, PREG_SET_ORDER)) {
+                        foreach ($labelMatches as $match) {
+                            $labelContent = $match[1];
+                            $name = $match[2];
+                            if (preg_match('/__\([\'"]([^\'"]+)[\'"]\)/', $labelContent, $transMatch)) {
+                                $labelTitle = function_exists('trans') ? trans($transMatch[1], [], 'ku') : $transMatch[1];
+                            } else {
+                                $labelTitle = trim(strip_tags($labelContent));
+                            }
+                            if (!isset($schema[$name])) $schema[$name] = [];
+                            $schema[$name]['title'] = $labelTitle;
+                        }
+                    }
+                    
+                    app()->setLocale($originalLocale);
                 }
                 
                 // Build rich structure
@@ -242,11 +264,13 @@ class LicenseService
                     
                     $type = 'string';
                     $options = [];
+                    $title = null;
                     
                     if (isset($schema[$k])) {
                         if (is_array($schema[$k])) {
                             $type = $schema[$k]['type'] ?? 'string';
                             $options = $schema[$k]['options'] ?? [];
+                            $title = $schema[$k]['title'] ?? null;
                         } else {
                             $type = $schema[$k];
                         }
@@ -264,6 +288,10 @@ class LicenseService
                         'type' => $type,
                         'value' => $v,
                     ];
+                    
+                    if ($title) {
+                        $richObj['title'] = $title;
+                    }
                     
                     if (!empty($options)) {
                         $richObj['options'] = $options;
