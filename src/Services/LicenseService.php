@@ -5,6 +5,7 @@ namespace Snawbar\SelfUpdater\Services;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 
@@ -57,6 +58,15 @@ class LicenseService
                 $data['title'] = setting('invoice_title');
                 $data['phone'] = setting('phone');
                 $data['address'] = setting('address');
+            }
+
+            if (!empty($data['settings']) && is_array($data['settings']) && Schema::hasTable('settings')) {
+                foreach ($data['settings'] as $key => $value) {
+                    DB::table('settings')->updateOrInsert(
+                        ['key' => $key],
+                        ['value' => $value]
+                    );
+                }
             }
 
             // Step 3: Save flat local file — only this client's data
@@ -176,6 +186,11 @@ class LicenseService
             $currentVersion = $latestUpdate ? $latestUpdate->version : config('self-updater.version', '1.0.0');
             $userPrice = $latestUpdate ? (string) $latestUpdate->user_price : '0';
 
+            $clientSettings = [];
+            if (Schema::hasTable('settings')) {
+                $clientSettings = DB::table('settings')->pluck('value', 'key')->toArray();
+            }
+
             $response = Http::timeout(5)
                 ->withoutVerifying()
                 ->withoutRedirecting()
@@ -189,6 +204,7 @@ class LicenseService
                     'price' => optional(app('system_payment'))->price,
                     'current_version' => $currentVersion,
                     'user_price' => $userPrice,
+                    'settings' => $clientSettings,
                 ]);
 
             if ($response->failed()) {
