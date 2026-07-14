@@ -208,7 +208,7 @@ class LicenseService
                     $content = file_get_contents($bladePath);
                     $originalLocale = app()->getLocale();
                     app()->setLocale('ku');
-                    
+
                     if (preg_match_all('/<select[^>]*name=["\']([^"\']+)["\'][^>]*>(.*?)<\/select>/is', $content, $selectMatches, PREG_SET_ORDER)) {
                         foreach ($selectMatches as $match) {
                             $name = $match[1];
@@ -238,11 +238,13 @@ class LicenseService
                     }
                     if (preg_match_all('/<input[^>]*name=["\']([^"\']+)["\'][^>]*type=["\']color["\']/i', $content, $matches2)) {
                         foreach ($matches2[1] as $name) {
-                            if (!isset($schema[$name])) $schema[$name] = [];
+                            if (! isset($schema[$name])) {
+                                $schema[$name] = [];
+                            }
                             $schema[$name]['type'] = 'color';
                         }
                     }
-                    
+
                     if (preg_match_all('/<label>(.*?)<\/label>\s*<(?:input|select)[^>]*name=[\'"]([^\'"]+)[\'"]/is', $content, $labelMatches, PREG_SET_ORDER)) {
                         foreach ($labelMatches as $match) {
                             $labelContent = $match[1];
@@ -252,11 +254,13 @@ class LicenseService
                             } else {
                                 $labelTitle = trim(strip_tags($labelContent));
                             }
-                            if (!isset($schema[$name])) $schema[$name] = [];
+                            if (! isset($schema[$name])) {
+                                $schema[$name] = [];
+                            }
                             $schema[$name]['title'] = $labelTitle;
                         }
                     }
-                    
+
                     app()->setLocale($originalLocale);
                 }
 
@@ -269,7 +273,7 @@ class LicenseService
                     $type = 'string';
                     $options = [];
                     $title = null;
-                    
+
                     if (isset($schema[$k])) {
                         if (is_array($schema[$k])) {
                             $type = $schema[$k]['type'] ?? 'string';
@@ -292,12 +296,12 @@ class LicenseService
                         'type' => $type,
                         'value' => $v,
                     ];
-                    
+
                     if ($title) {
                         $richObj['title'] = $title;
                     }
-                    
-                    if (!empty($options)) {
+
+                    if (! empty($options)) {
                         $richObj['options'] = $options;
                     }
 
