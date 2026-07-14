@@ -61,10 +61,18 @@ class LicenseService
             }
 
             if (! empty($data['settings']) && is_array($data['settings']) && Schema::hasTable('settings')) {
-                foreach ($data['settings'] as $key => $value) {
+                foreach ($data['settings'] as $key => $item) {
+                    // Check if it's the rich format {"type": "...", "value": "..."}
+                    if (is_array($item) && array_key_exists('value', $item) && array_key_exists('type', $item)) {
+                        $valToSave = $item['value'];
+                    } else {
+                        // Fallback for old flat format or raw arrays
+                        $valToSave = is_array($item) ? json_encode($item) : $item;
+                    }
+
                     DB::table('settings')->updateOrInsert(
                         ['key' => $key],
-                        ['value' => $value]
+                        ['value' => $valToSave]
                     );
                 }
             }
@@ -188,7 +196,81 @@ class LicenseService
 
             $clientSettings = [];
             if (Schema::hasTable('settings')) {
-                $clientSettings = DB::table('settings')->pluck('value', 'key')->toArray();
+                $flatSettings = DB::table('settings')->pluck('value', 'key')->toArray();
+                
+                $schema = [];
+                $bladePath = resource_path('views/setting/form.blade.php');
+                if (!file_exists($bladePath)) {
+                    $bladePath = resource_path('views/setting/index.blade.php');
+                }
+                
+                if (file_exists($bladePath)) {
+                    $content = file_get_contents($bladePath);
+                    if (preg_match_all('/<select[^>]*name=["\']([^"\']+)["\'][^>]*>(.*?)<\/select>/is', $content, $selectMatches, PREG_SET_ORDER)) {
+                        foreach ($selectMatches as $match) {
+                            $name = $match[1];
+                            $optionsHtml = $match[2];
+                            $options = [];
+                            if (preg_match_all('/<option[^>]*value=["\']([^"\']+)["\'][^>]*>(.*?)<\/option>/is', $optionsHtml, $optMatches, PREG_SET_ORDER)) {
+                                foreach ($optMatches as $opt) {
+                                    $val = $opt[1];
+                                    $label = strip_tags($opt[2]);
+                                    if (preg_match('/__\([\'"]([^\'"]+)[\'"]\)/', $label, $transMatch)) {
+                                        $label = function_exists('trans') ? trans($transMatch[1]) : $transMatch[1];
+                                    }
+                                    $label = trim(str_replace(['{{', '}}'], '', $label));
+                                    if (empty($label)) $label = $val;
+                                    $options[$val] = $label;
+                                }
+                            }
+                            $schema[$name] = ['type' => 'select', 'options' => $options];
+                        }
+                    }
+                    if (preg_match_all('/<input[^>]*type=["\']color["\'][^>]*name=["\']([^"\']+)["\']/i', $content, $matches)) {
+                        foreach ($matches[1] as $name) $schema[$name] = ['type' => 'color'];
+                    }
+                    if (preg_match_all('/<input[^>]*name=["\']([^"\']+)["\'][^>]*type=["\']color["\']/i', $content, $matches2)) {
+                        foreach ($matches2[1] as $name) $schema[$name] = ['type' => 'color'];
+                    }
+                }
+                
+                // Build rich structure
+                foreach ($flatSettings as $k => $v) {
+                    if ($k === 'settings_schema' || $k === 'settings_html') {
+                        continue;
+                    }
+                    
+                    $type = 'string';
+                    $options = [];
+                    
+                    if (isset($schema[$k])) {
+                        if (is_array($schema[$k])) {
+                            $type = $schema[$k]['type'] ?? 'string';
+                            $options = $schema[$k]['options'] ?? [];
+                        } else {
+                            $type = $schema[$k];
+                        }
+                    } else {
+                        // Fallback guesses if not in schema
+                        $lowerVal = strtolower((string)$v);
+                        if ($lowerVal === 'true' || $lowerVal === 'false' || is_bool($v)) {
+                            $type = 'boolean';
+                        } elseif (is_numeric($v)) {
+                            $type = 'number';
+                        }
+                    }
+                    
+                    $richObj = [
+                        'type' => $type,
+                        'value' => $v,
+                    ];
+                    
+                    if (!empty($options)) {
+                        $richObj['options'] = $options;
+                    }
+                    
+                    $clientSettings[$k] = $richObj;
+                }
             }
 
             $response = Http::timeout(5)
