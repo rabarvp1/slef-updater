@@ -5,9 +5,9 @@ namespace Snawbar\SelfUpdater\Services;
 use Carbon\Carbon;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Schema;
 
 class LicenseService
 {
@@ -60,7 +60,7 @@ class LicenseService
                 $data['address'] = setting('address');
             }
 
-            if (!empty($data['settings']) && is_array($data['settings']) && Schema::hasTable('settings')) {
+            if (! empty($data['settings']) && is_array($data['settings']) && Schema::hasTable('settings')) {
                 foreach ($data['settings'] as $key => $value) {
                     DB::table('settings')->updateOrInsert(
                         ['key' => $key],
